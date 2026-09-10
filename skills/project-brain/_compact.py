@@ -34,12 +34,16 @@ HEADER_LINES = [
     "#   pointer = projects/<name>/<topic>.md  (inline only when it differs)",
     "#   tiers:  P+ = HOT (active, full)  ·  P = WARM  ·  COLD (archived) omitted — read on demand",
     "#   when active projects > 15, WARM collapses to: P <name> <stack> · N topics, last <date>",
+    "#   a project's finished topics collapse past 15: '+K more, oldest <date>' (⚠ always kept)",
     "#   ! <rule> = HARD RULE, never violate (brain-wide on top, or under a project) · ~ = session resume",
     "#   @ <name> <status> <date> = person (people/<name>.md) · status: active|prospect|paused|closed",
 ]
 
 HOT_MAX = 3            # at most this many projects are HOT (always full in compact)
 PROJECT_THRESHOLD = 15  # above this many ACTIVE projects, WARM collapses to keep compact small
+TOPIC_THRESHOLD = 15    # above this many topics in ONE project, finished topics start collapsing
+                        # (same number brain-check warns "consider consolidating" at — one
+                        # canonical threshold instead of two independently-defined 15s)
 
 
 def find_brain(arg):
@@ -281,6 +285,31 @@ def _brain_updated(projects):
     return max(dates) if dates else ""
 
 
+def _tier_topics(topics):
+    """Split a project's topics into (shown, collapse_line) once it passes TOPIC_THRESHOLD.
+
+    `⚠ in-progress` topics are always shown in full — never hidden, whatever the count. The
+    remaining budget (THRESHOLD - open count, floored at 0) goes to the most-recently-dated
+    finished topics (✓v/✓d/✗/⨯; undated ones sort last); the rest collapse into one summary
+    line. Below the threshold, every topic is shown and collapse_line is None — unchanged
+    behavior for the vast majority of brains. Shown topics keep their original index.md order.
+    """
+    if len(topics) <= TOPIC_THRESHOLD:
+        return topics, None
+    open_t = [t for t in topics if t["status"] == "⚠"]
+    closed_t = [t for t in topics if t["status"] != "⚠"]
+    budget = max(TOPIC_THRESHOLD - len(open_t), 0)
+    closed_sorted = sorted(closed_t, key=lambda t: t["date"] or "", reverse=True)
+    keep_ids = {id(t) for t in open_t} | {id(t) for t in closed_sorted[:budget]}
+    shown = [t for t in topics if id(t) in keep_ids]
+    collapsed = [t for t in closed_sorted[budget:]]
+    if not collapsed:
+        return shown, None
+    dated = sorted(t["date"] for t in collapsed if t["date"])
+    tail = f", oldest {dated[0]}" if dated else ""
+    return shown, f"  +{len(collapsed)} more{tail}"
+
+
 def render_compact(text, gen_date=None):
     """Render index.md text into the compact representation (deterministic, tier-aware)."""
     projects = parse_index(text)
@@ -328,7 +357,8 @@ def render_compact(text, gen_date=None):
         if not p["topics"]:
             out.append("  -")
             continue
-        for t in p["topics"]:
+        shown, collapse_line = _tier_topics(p["topics"])
+        for t in shown:
             parts = [t["slug"]]
             for key in ("status", "date", "ver"):
                 if t[key]:
@@ -337,6 +367,8 @@ def render_compact(text, gen_date=None):
             if t["pointer"] and t["pointer"] != default:
                 parts.append(t["pointer"])
             out.append("  " + " ".join(parts))
+        if collapse_line:
+            out.append(collapse_line)
 
     # people — agreements with humans, catalogued beside projects (detail in people/<slug>.md)
     if people:

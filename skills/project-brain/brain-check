@@ -57,7 +57,6 @@ PEOPLE_REQUIRED = {"person", "status", "version"}
 FINISHED_STATUS = {"verified", "done"}   # only finished claims can go "stale"
 STALE_DAYS = 180                          # horizon used when a topic has no explicit review_by
 THIN_BYTES = 300
-MAX_TOPICS = 15
 MAX_BODY_LINES = 40                       # a topic longer than this wants splitting (memory hygiene)
 
 
@@ -555,8 +554,12 @@ def main():
                                      .setdefault(canon, set()).add(rel))
 
     for proj, n in per_project.items():
-        if n > MAX_TOPICS:
-            warnings.append(f"project '{proj}' has {n} topics (>{MAX_TOPICS}) — consider consolidating")
+        if n > _compact.TOPIC_THRESHOLD:
+            warnings.append(
+                f"project '{proj}' has {n} topics (>{_compact.TOPIC_THRESHOLD}) — compact "
+                f"auto-collapses the older finished ones now, but the files themselves still "
+                f"add drill-down overhead; consider consolidating"
+            )
 
     # 3. validate people/<slug>.md — agreements with humans, same validation spirit as topics
     people_dir = os.path.join(brain, "people")
