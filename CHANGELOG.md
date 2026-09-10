@@ -3,6 +3,23 @@
 All notable changes to Project Brain are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the project uses semantic-ish versioning.
 
+## [2.4.0] — 2026-09-10
+
+Closes a gap an audit of the brain's own claims turned up: the README promises the per-session
+cost stays bounded "not by how much history you keep" — true across projects (HOT/WARM/COLD tiers,
+2.0), but not true *within* a single project, whose full topic list rendered unconditionally no
+matter how large it grew. **Backward compatible**, still zero required runtime dependencies.
+
+### Added
+- **Topic-level tiering in the compact index.** The same idea as HOT/WARM/COLD, one level down:
+  `⚠ in-progress` topics are always shown in full, however many there are; once a project passes
+  **15 topics**, its finished ones (`✓v`/`✓d`/`✗`/`⨯`) start collapsing — the most-recently-dated
+  ones stay expanded up to that cap, the rest fold into one `+K more, oldest <date>` line. Pure
+  function of `index.md`, deterministic, no new file format. `brain-check`'s existing "project has
+  >15 topics" warning now references the same threshold (`_compact.TOPIC_THRESHOLD`) instead of a
+  second, independently-defined `15`, and its wording reflects that the compact self-corrects now
+  even though the underlying files still benefit from consolidating.
+
 ## [2.3.0] — 2026-08-16
 
 Closes the loop the last two releases opened: the brain now loads itself (2.2), stays fresh

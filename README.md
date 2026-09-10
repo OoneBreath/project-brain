@@ -2,7 +2,7 @@
 
 **Stop re-explaining your projects to the AI every session.**
 
-[![Version](https://img.shields.io/badge/version-2.3.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.4.0-blue)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Runtime deps](https://img.shields.io/badge/runtime%20deps-zero-success)](#how-it-works)
 [![Works with](https://img.shields.io/badge/works%20with-Claude%20Code%20%C2%B7%20Cursor%20%C2%B7%20Windsurf-purple)](#works-across-tools-same-brain-different-agents)
@@ -160,6 +160,21 @@ date — read straight from the brain's own dates, no git required.
 
 ---
 
+## What's new in 2.4
+
+An audit of the brain's own claims found the "cost stays bounded, not by how much history you
+keep" promise held across projects (HOT/WARM/COLD) but not *within* one large project — backward
+compatible, still zero required runtime dependencies.
+
+- **Topic-level tiering in the compact index.** Same idea as HOT/WARM/COLD, one level down:
+  `⚠ in-progress` topics always render in full; past 15 topics in one project, the finished ones
+  collapse to the most-recently-dated cap plus one `+K more, oldest <date>` line, instead of every
+  topic dumping unconditionally forever.
+
+Full details in the [CHANGELOG](CHANGELOG.md).
+
+---
+
 ## What's new in 2.3
 
 Closes the loop 2.2 opened: the brain now stays fresh without a manual step, gets mechanical
@@ -225,7 +240,8 @@ Full details in the [CHANGELOG](CHANGELOG.md).
 
 - **Dual-format index** — a generated, token-cheap `index.compact` the agent reads first (≈ −52% vs
   `index.md` on a real multi-project brain), falling back to `index.md` if it's missing.
-- **HOT / WARM / COLD tiers** — the eager cost stays bounded as the brain grows past 15 projects.
+- **HOT / WARM / COLD tiers** — the eager cost stays bounded as the brain grows past 15 projects,
+  or past 15 topics inside one project.
 - **One-line session resume** — done / next / blocker, so you pick up exactly where you left off.
 - **Hard rules** (`! never:`), **`trust: pref`**, and **delta-load** (reload only what changed).
 - **Decision log** — why a path was chosen and what was rejected, so it isn't re-proposed.

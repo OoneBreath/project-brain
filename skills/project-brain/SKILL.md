@@ -1,6 +1,6 @@
 ---
 name: project-brain
-version: 2.3.0
+version: 2.4.0
 author: Slawomir Luzny <info@fixflex.co.uk> (https://fixflex.co.uk)
 description: >-
   Persistent, navigable project memory for Claude Code that survives across
@@ -272,6 +272,15 @@ Tiering only shapes the **generated** compact — `index.md` always holds every 
 nothing is hidden from a deliberate read. Selection is deterministic (recency + pins, not the clock),
 so regeneration is stable. `brain-check` warns if more than 3 projects are pinned `{hot}` (only the
 first 3 are honored; the rest fall to WARM).
+
+**Topic-level collapsing (within one project).** The tiers above bound the compact as a brain
+grows *more projects*; this bounds it as a single project grows *more topics* — the same idea, one
+level down. `⚠ in-progress` topics are **always** shown in full, however many there are — they're
+the still-open work, the most likely thing to matter right now. Past **15 topics**, a project's
+finished ones (`✓v` `✓d` `✗` `⨯`) start collapsing: the most-recently-dated ones stay expanded up
+to that cap, and the rest fold into one line — `+K more, oldest <date>` — instead of dumping every
+topic unconditionally. Same rule as above: this only shapes the compact, `index.md` still holds
+every topic in full, and it's deterministic (a given `index.md` always collapses the same way).
 
 ## Session summaries — "where did we leave off?"
 

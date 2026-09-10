@@ -1,6 +1,6 @@
 {
   "name": "project-brain",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Persistent, navigable project memory for AI coding agents — a .project-brain/ folder of plain markdown (dual-format index, tiers, sessions, decisions, people, infra-safe export) that survives across sessions and months, so the agent stops forgetting, stops mixing projects up, and stops re-reading huge docs every session.",
   "author": {
     "name": "Slawomir Luzny",
