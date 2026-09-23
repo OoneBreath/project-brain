@@ -542,4 +542,4 @@ Use `last_done` dates and the `⨯ superseded` status to spot what's stale.
 ---
 
 *Project Brain — built and maintained by **Slawomir Luzny** ([fixflex.co.uk](https://fixflex.co.uk)).
-MIT licensed. Contributions and issues: https://github.com/OoneBreath/claude-code-project-brain*
+MIT licensed. Contributions and issues: https://github.com/OoneBreath/project-brain*

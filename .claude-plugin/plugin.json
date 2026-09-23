@@ -8,7 +8,7 @@
     "url": "https://fixflex.co.uk"
   },
   "homepage": "https://fixflex.co.uk/project-brain.html",
-  "repository": "https://github.com/OoneBreath/claude-code-project-brain",
+  "repository": "https://github.com/OoneBreath/project-brain",
   "license": "MIT",
   "hooks": "./hooks/hooks.json",
   "keywords": [

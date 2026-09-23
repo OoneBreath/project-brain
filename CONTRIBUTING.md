@@ -6,7 +6,7 @@ is lightweight.
 
 ## Ways to help
 
-- **Report a bug or rough edge** — open an [issue](https://github.com/OoneBreath/claude-code-project-brain/issues)
+- **Report a bug or rough edge** — open an [issue](https://github.com/OoneBreath/project-brain/issues)
   describing what you expected vs. what happened. Include your OS and Claude Code version.
 - **Suggest an improvement** — open an issue first so we can discuss the idea
   before you spend time on a PR.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Project Brain — persistent project memory for Claude Code.
 # Author: Slawomir Luzny <info@fixflex.co.uk> (https://fixflex.co.uk) — MIT licensed.
-# Repo:   https://github.com/OoneBreath/claude-code-project-brain
+# Repo:   https://github.com/OoneBreath/project-brain
 #
 # Install the project-brain skill for Claude Code (personal scope).
 # Re-run any time to update. Run on every machine where you use Claude Code.

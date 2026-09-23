@@ -256,8 +256,8 @@ Full details in the [CHANGELOG](CHANGELOG.md).
 ## Install
 
 ```bash
-git clone https://github.com/OoneBreath/claude-code-project-brain.git
-cd claude-code-project-brain
+git clone https://github.com/OoneBreath/project-brain.git
+cd project-brain
 ./install.sh        # copies the skill into ~/.claude/skills/  (run on each machine)
 ```
 
