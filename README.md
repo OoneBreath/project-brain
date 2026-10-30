@@ -360,6 +360,18 @@ Gemini / ChatGPT).
 > hook. Capability is the bar, not the vendor: reading a brain is nearly universal, and managing one
 > well is now within reach of good local models.
 
+## Companion: Skill Airlock
+
+[**Skill Airlock**](https://github.com/OoneBreath/skill-airlock) is the sibling project for the other
+half of the agent's context: skills. It treats them as temporary capabilities, not permanent
+installations. The agent searches a local index of catalogs you choose (offline), audits a candidate in
+quarantine before it touches your machine, uses it once or for a few days, and removes it afterwards.
+`airlock budget` shows what your installed skills cost in every session.
+
+Project Brain remembers your projects; Skill Airlock keeps the toolbox lean. Planned next: the brain
+records which skill worked for which kind of task, so the agent knows what to use next time without
+keeping it installed.
+
 ---
 
 ## Background
