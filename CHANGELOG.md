@@ -3,6 +3,16 @@
 All notable changes to Project Brain are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the project uses semantic-ish versioning.
 
+## [2.4.1] — 2026-11-07
+
+### Fixed
+- **Hard rules written without the colon after `never` were truncated in `index.compact`** when the
+  rule itself contained a colon later on: `! never commit .env files (see: security.md)` became
+  `! never: security.md)`, so the agent reading the compact at session start saw a mangled rule.
+  The marker (`! never` plus an optional colon) is now stripped with one pattern and the rest of the
+  line is kept as is. Rules written as `! never: …` were not affected. Regression test:
+  `tests/test-compact-hard-rules.sh`. Reported in #1 — thank you.
+
 ## [2.4.0] — 2026-09-10
 
 Closes a gap an audit of the brain's own claims turned up: the README promises the per-session

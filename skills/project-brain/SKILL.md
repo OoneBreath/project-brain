@@ -1,6 +1,6 @@
 ---
 name: project-brain
-version: 2.4.0
+version: 2.4.1
 author: Slawomir Luzny <info@fixflex.co.uk> (https://fixflex.co.uk)
 description: >-
   Persistent, navigable project memory for Claude Code that survives across

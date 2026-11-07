@@ -141,11 +141,12 @@ def parse_index(text):
 
 
 def _never_text(line):
-    """Extract the rule from a `! never: <rule>` line (drop the marker, keep the rule)."""
-    s = line.strip()
-    if ":" in s:
-        return s.split(":", 1)[1].strip()
-    return re.sub(r"^!\s*never\b", "", s, flags=re.I).strip()
+    """Extract the rule from a `! never: <rule>` line (drop the marker, keep the rule).
+
+    The colon after `never` is optional, and only that colon is part of the marker: a rule like
+    `! never commit .env files (see: security.md)` keeps its own later colon intact.
+    """
+    return re.sub(r"^!\s*never\b\s*:?", "", line.strip(), flags=re.I).strip()
 
 
 def parse_people(text):
