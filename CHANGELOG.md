@@ -27,6 +27,19 @@ All notable changes to Project Brain are documented here. Format loosely follows
   rules added to `index.md` since then. `brain-trust` now records the hard rules at trust time;
   `brain-trust WORKSPACE --yes` on an already trusted workspace records its current state.
 
+### Changed
+- **SKILL.md split: 564 → 198 lines.** SKILL.md is what the agent loads every time the skill is used.
+  It now keeps only what every use needs — where the brain lives, the modes (init / recall / save /
+  validate), what a save writes (index line, status legend, hard rules), the Rules — plus a "read X
+  when Y" table. The detail moved, with the wording unchanged, into
+  `skills/project-brain/references/`: `init.md`, `format.md`, `compact-and-tiers.md`,
+  `sessions-and-decisions.md`, `provenance-and-staleness.md`, `validate-and-search.md`, `export.md`,
+  `hooks.md`. Measured on this change (`wc`, and ~4 chars/token, the same estimate `brain-export`
+  uses — approximate, stdlib has no tokenizer): **564 lines / 36,293 bytes / ~8,970 tokens → 198
+  lines / 13,216 bytes / ~3,270 tokens**. The references (28,372 bytes) are read only when needed.
+  `airlock audit skills/project-brain` (Skill Airlock 0.2.0): before REVIEW (MEDIUM `agent-config`
+  in SKILL.md, LOW `oversized`, ~8,762 tok on use), after OK (no MEDIUM, ~3,064 tok on use).
+
 ### Fixed
 - **`brain-nudge` on macOS** read the modification time of `index.md` with `date -r FILE` and GNU
   `stat -c`; where neither works (BSD `date -r` takes seconds, BSD `stat` uses `-f %m`) it fell back to
