@@ -11,8 +11,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        python: ["3.9", "3.12"]
+        include:
+          # Python 3.9 is the lowest version the scripts support (RHEL 9 / Debian 11 still ship it);
+          # setup-python no longer has it for the newest Ubuntu image, so it runs on 24.04.
+          - { os: ubuntu-24.04, python: "3.9" }
+          - { os: ubuntu-latest, python: "3.12" }
+          - { os: macos-latest, python: "3.9" }
+          - { os: macos-latest, python: "3.12" }
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
