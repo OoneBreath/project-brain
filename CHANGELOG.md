@@ -50,6 +50,12 @@ All notable changes to Project Brain are documented here. Format loosely follows
   `airlock audit skills/project-brain` (Skill Airlock 0.2.0): before REVIEW (MEDIUM `agent-config`
   in SKILL.md, LOW `oversized`, ~8,762 tok on use), after OK (no MEDIUM, ~3,064 tok on use).
 
+- **README: 399 → 248 lines.** The five "What's new in 2.0–2.4" sections are gone (the CHANGELOG
+  already held all of it) and a 4-line "Latest (2.5)" block links here; Install moved right after
+  "The fix"; a short "Security" section (brain content is data, trust before auto-load, hard rules only
+  restrict, no secrets) links SECURITY.md; "How it works", "The validator" and "Native memory" were
+  merged where they repeated each other. No feature description and no measured number was dropped.
+
 ### Fixed
 - **A topic line with its own `[...]` in the description lost its status.** The first `[...]` on an
   `index.md` line was taken as the status bracket, so a description like "plaintext [Security]
