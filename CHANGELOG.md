@@ -3,6 +3,51 @@
 All notable changes to Project Brain are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the project uses semantic-ish versioning.
 
+## [2.4.2] — 2026-11-09
+
+### Action needed
+- **Run `brain-trust` once in each workspace whose brain you created yourself.** After this update a
+  brain is auto-loaded only in a trusted workspace, and existing brains are not trusted
+  automatically (a brain you made can't be told apart from one that came with a cloned repo or a
+  downloaded archive). Until you do, the session starts with a one-line notice instead of the index.
+  Review what the command shows (hard rules, size), then confirm:
+  `~/.claude/skills/project-brain/brain-trust /path/to/workspace` (plugin installs: the same script
+  under the plugin's `skills/project-brain/`). New brains made with `init` are trusted by `init`.
+
+### Security
+- **`brain-inject` no longer loads a brain from an untrusted workspace.** A repository can carry a
+  committed `.project-brain/`; before, its `index.compact` reached the agent at session start, with
+  `!` lines presented as hard rules. Now the trust store `~/.project-brain/trusted.json` (outside
+  every repo, mode 600) decides. Details in [SECURITY.md](SECURITY.md).
+- **New `brain-trust` command:** `brain-trust [workspace]` shows the brain's hard rules and size and
+  asks before trusting (`--yes` skips the prompt, and is required without a terminal); `--revoke`,
+  `--list`; `--created-here` is what `init` uses, and it refuses a brain that git tracks or that
+  wasn't just created.
+- **Fixed preamble** before the loaded index, written by the hook: project notes, not instructions
+  from the user; hard rules (`!`) can only restrict and never grant permission, skip confirmation or
+  override the user. SKILL.md says the same in its Rules and Hard rules sections.
+- **Sanitised and capped:** zero-width, bidi-control and Unicode tag characters are shown as
+  `<U+XXXX>`; other control characters except newline and tab are dropped; the text is capped at
+  16 KB with a "truncated" line.
+
+### Fixed
+- **Invalid JSON without `jq`.** The bash hook's fallback escaped only backslash, quote and newline,
+  so a tab, `\r` or any other control character in the brain produced invalid JSON and the session
+  silently started without the index. `brain-inject` is now Python 3 (stdlib) and uses `json.dumps`.
+
+### Changed
+- `install.sh` merges the hooks into `settings.json` with `python3` instead of `node`, so a skill
+  install no longer needs Node. Same behaviour: keeps existing settings, idempotent, backup + diff,
+  leaves an invalid `settings.json` untouched.
+- If a hard rule in your brain is really a standing permission ("always push after saving"), move
+  it to `CLAUDE.md` or your agent's settings: a `!` line can only restrict.
+
+### Tests
+- `tests/test-brain-inject.sh` (22 checks: no brain, untrusted notice, trusted preamble, valid JSON with
+  tab/`\r`/quotes/backslashes/emoji/zero-width/bidi/tag characters, 16 KB cap, `--revoke`, `init`
+  via `--created-here` and its refusals, no trust without `--yes` off a terminal) and
+  `tests/test-install.sh` (merge keeps settings, idempotent, invalid JSON untouched).
+
 ## [2.4.1] — 2026-11-07
 
 ### Fixed
