@@ -47,7 +47,7 @@ gen_finished() {  # gen_finished N -> N lines "fNN -> f  [✓ verified YYYY-01-N
 out="$(python3 "$SKILL/brain-compact" "$TMP" --stdout)" || fail "brain-compact --stdout errored"
 
 # --- acme: over threshold (18 topics) ---
-acme="$(echo "$out" | sed -n '/^P+\? acme/,/^P/p')"
+acme="$(echo "$out" | sed -nE '/^P\+? acme/,/^P/p')"
 for t in alpha beta gamma; do
     echo "$acme" | grep -q "^  $t ⚠" || fail "acme: open topic '$t' missing or not shown in full"
 done
@@ -61,14 +61,14 @@ done
 echo "$acme" | grep -q "^  +3 more, oldest 2026-01-01\$" || fail "acme: collapse line wrong or missing: $(echo "$acme" | grep '+.*more')"
 
 # --- small: under threshold, unchanged (no collapse line, all 3 shown) ---
-small="$(echo "$out" | sed -n '/^P+\? small/,/^P/p')"
+small="$(echo "$out" | sed -nE '/^P\+? small/,/^P/p')"
 for t in one two three; do
     echo "$small" | grep -q "^  $t " || fail "small: topic '$t' missing (should be unaffected under threshold)"
 done
 echo "$small" | grep -q "more, oldest" && fail "small: should not have a collapse line under threshold"
 
 # --- allopen: over threshold, all ⚠, nothing finished -> no collapse line, all 16 shown ---
-allopen="$(echo "$out" | sed -n '/^P+\? allopen/,/^P/p')"
+allopen="$(echo "$out" | sed -nE '/^P\+? allopen/,/^P/p')"
 n_shown="$(echo "$allopen" | grep -c '^  o[0-9]* ⚠')"
 [ "$n_shown" -eq 16 ] || fail "allopen: expected all 16 open topics shown, got $n_shown"
 echo "$allopen" | grep -q "more, oldest" && fail "allopen: should not collapse (nothing finished to collapse)"

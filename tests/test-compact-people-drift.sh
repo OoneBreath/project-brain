@@ -51,7 +51,11 @@ out="$(python3 "$SKILL/brain-check" "$TMP" 2>&1)" || fail "brain-check errored o
 echo "$out" | grep -q "out of date" && fail "clean brain flagged as drifted"
 
 # 2. change ONLY the people line (its date) -> drift MUST be flagged
-sed -i 's/\[active 2026-01-10\]/[active 2026-02-01]/' "$BRAIN/index.md"
+python3 - "$BRAIN/index.md" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+open(p, "w").write(s.replace("[active 2026-01-10]", "[active 2026-02-01]"))
+PY
 out="$(python3 "$SKILL/brain-check" "$TMP" 2>&1)" || true
 echo "$out" | grep -q "out of date" || fail "people-only change did not flag compact drift"
 
