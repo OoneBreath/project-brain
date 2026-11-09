@@ -16,6 +16,7 @@ import datetime
 import hashlib
 import json
 import os
+import re
 import tempfile
 
 STORE_VERSION = 1
@@ -84,6 +85,16 @@ def index_sha256(workspace):
         return None
 
 
+def index_hard_rules(workspace):
+    """The `!` lines of index.md (sanitised), i.e. the hard rules the compact index carries."""
+    path = os.path.join(workspace, ".project-brain", "index.md")
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            return [sanitize(line.strip()) for line in f if line.lstrip().startswith("!")]
+    except OSError:
+        return []
+
+
 def add(workspace, created_here):
     key = workspace_key(workspace)
     entries = [e for e in load() if e.get("workspace_realpath") != key]
@@ -92,6 +103,7 @@ def add(workspace, created_here):
         "brain_created_here": bool(created_here),
         "trusted_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "index_md_sha256_at_trust": index_sha256(key),
+        "hard_rules_at_trust": index_hard_rules(key),
     }
     entries.append(entry)
     entries.sort(key=lambda e: e["workspace_realpath"])
@@ -127,24 +139,89 @@ def _is_invisible(code):
     return code in _INVISIBLE or 0xE0000 <= code <= 0xE007F or 0xE0100 <= code <= 0xE01EF
 
 
+def _emoji_like(ch):
+    code = ord(ch)
+    return code >= 0x1F000 or 0x2600 <= code <= 0x27BF or code in (0xFE0F, 0x20E3)
+
+
+def _hidden_at(text, i):
+    """True if text[i] is an invisible character. A zero-width joiner between two emoji is not:
+    it is how sequences such as a family or a flag emoji are built."""
+    code = ord(text[i])
+    if not _is_invisible(code):
+        return False
+    if code == 0x200D and 0 < i < len(text) - 1 and _emoji_like(text[i - 1]) and _emoji_like(text[i + 1]):
+        return False
+    return True
+
+
 def sanitize(text):
     """Make invisible characters visible as <U+XXXX>; drop other control characters except \\n and \\t."""
     out = []
-    for ch in text:
+    for i, ch in enumerate(text):
         code = ord(ch)
         if ch in "\n\t":
             out.append(ch)
         elif code < 0x20 or code == 0x7F or 0x80 <= code <= 0x9F:
             continue
-        elif _is_invisible(code):
+        elif _hidden_at(text, i):
             out.append("<U+%04X>" % code)
         else:
             out.append(ch)
     return "".join(out)
 
 
+def hidden_positions(text):
+    """[(column, codepoint)] of invisible characters in one line (or any text)."""
+    return [(i, ord(ch)) for i, ch in enumerate(text) if _hidden_at(text, i)]
+
+
 def hidden_count(text):
-    return sum(1 for ch in text if _is_invisible(ord(ch)))
+    return len(hidden_positions(text))
+
+
+# --- hard rules that grant instead of restrict ------------------------------------------------
+# Hard rules (`!` lines) may only restrict what the agent does. These phrase families describe a
+# rule that grants, hides or hands control elsewhere. Kept in ONE place: brain-check (the
+# `hard-rule-grants` check) and brain-trust (before trusting) both use it.
+#   negatable=True: the phrase only grants when it is not negated. "! never: bypass the review"
+#   and "! never use sudo on prod" restrict; "! bypass the review" grants. Phrases that are
+#   already a negative instruction ("don't ask", "never mention") are not negatable.
+_URL = r"(?:https?://|www\.)\S+"
+HARD_RULE_GRANTS = [
+    ("skip-confirmation", re.compile(
+        r"\b(?:don'?t|do\s+not|never|no\s+need\s+to)\s+(?:ask|confirm|check\s+with|wait\s+for)\b"
+        r"|\bwithout\s+(?:asking|confirm(?:ing|ation)|approval|permission|a\s+prompt)\b"
+        r"|\b(?:pre-?approved|already\s+approved|auto-?approve[sd]?)\b", re.I), False),
+    ("widen-permissions", re.compile(
+        r"--dangerously[\w-]*|\bbypass(?:es|ed|ing)?\b|\bskip(?:ping)?\s+(?:the\s+)?permissions?\b|\bsudo\b"
+        r"|\brun(?:ning)?\s+as\s+root\b|\bdisabl(?:e|es|ing)\s+(?:the\s+)?hooks?\b"
+        r"|\bignore\s+(?:the\s+user|(?:all\s+)?(?:previous|prior|earlier)\b)|\boverrid(?:e|es|ing)\b", re.I), True),
+    ("hide-from-user", re.compile(
+        r"\b(?:don'?t|do\s+not|never)\s+(?:tell|mention|inform|show|report\s+to)\b|\bwithout\s+telling\b", re.I), False),
+    ("hide-from-user", re.compile(r"\bsilently\b", re.I), True),
+    ("follow-remote", re.compile(
+        _URL + r".*\b(?:follow|run|execute|exec|source|obey)\b|\b(?:follow|run|execute|exec|source|obey)\b.*" + _URL,
+        re.I), True),
+]
+_NEVER_MARKER = re.compile(r"^\s*!\s*never\b\s*:?\s*", re.I)
+_NEGATION_BEFORE = re.compile(r"\b(?:never|don'?t|do\s+not|not|no|without)\b[^.;!?]*$", re.I)
+
+
+def grant_hits(line):
+    """Families of grant-like phrases in one `!` line ([] for a plain restriction)."""
+    text = line.strip()
+    whole_rule_negated = bool(_NEVER_MARKER.match(text))
+    text = _NEVER_MARKER.sub("never ", text, count=1) if whole_rule_negated else text.lstrip("! ")
+    hits = []
+    for family, pattern, negatable in HARD_RULE_GRANTS:
+        for m in pattern.finditer(text):
+            if negatable and (whole_rule_negated or _NEGATION_BEFORE.search(text[: m.start()])):
+                continue
+            if family not in hits:
+                hits.append(family)
+            break
+    return hits
 
 
 def cap(text, limit=CAP_BYTES, note="read .project-brain/index.md for the rest"):

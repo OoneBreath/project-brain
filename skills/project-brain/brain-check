@@ -21,6 +21,10 @@ Checks:
     `allow_conflict: [relational-db]` so its legitimate multi-tech listing isn't flagged
   - people/<slug>.md: valid frontmatter (person/status/version), a relationship status
     (active|prospect|paused|closed), person matches the filename, staleness, and orphans
+  - hard-rule-grants: a `!` line in index.md, a topic or a person file that GRANTS instead of
+    restricting (skips confirmation, widens permissions, hides things from the user, or says to
+    follow remote content) — a warning, an error with --strict. Phrase list: _trust.HARD_RULE_GRANTS
+  - hidden-chars (error): zero-width, bidi-control or Unicode tag characters anywhere in the brain
 
 Backward compatible: the new provenance/staleness/cross-project/conflict signals are WARNINGS,
 never errors, and only fire on fields a brain actually uses — older brains keep passing untouched.
@@ -31,9 +35,11 @@ No third-party dependencies — Python 3 stdlib only.
 Usage:
   brain-check [PATH] [--strict] [--report] [--diff YYYY-MM-DD] [--fix]
       PATH      a .project-brain dir, a workspace containing one, or omitted (cwd)
-      --strict  also flag cross-project name-drops in topic bodies (noisy on coupled brains)
+      --strict  also flag cross-project name-drops in topic bodies (noisy on coupled brains),
+                and make hard-rule-grants an error
       --report  print a grouped, readable report (staleness, conflicts, orphans, …) instead
-                of a flat warning list — same checks, easier to scan
+                of a flat warning list — same checks, easier to scan; it also lists every hard
+                rule with its file, and the ones added since you trusted the brain (brain-trust)
       --diff D  instead of validating, list what changed on/after date D — new/updated topics,
                 session lines, resume lines, decisions, and people — from the brain's own dates
       --fix     apply the two MECHANICAL fixes before validating (everything else stays a
@@ -48,6 +54,7 @@ from datetime import date, datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _compact  # noqa: E402  (shared dual-format index renderer, stdlib only)
+import _trust  # noqa: E402  (workspace trust, sanitising, the hard-rule grant phrases)
 
 VALID_STATUS = ["verified", "done", "in-progress", "failed", "superseded"]
 PEOPLE_STATUS = ["active", "prospect", "paused", "closed"]   # relationship state for people/
@@ -175,6 +182,7 @@ def parse_allow_conflict(val):
 
 # --- --report grouping: classify a warning string into a section (default output is unchanged) ---
 REPORT_SECTIONS = [
+    ("hard-rules",    "Hard rules that grant instead of restrict"),
     ("conflict",      "Conflicts (contradictory facts)"),
     ("staleness",     "Staleness (re-confirm before trusting)"),
     ("cross-project", "Cross-project (possible mix-ups)"),
@@ -188,6 +196,8 @@ REPORT_SECTIONS = [
 
 def categorize(msg):
     m = msg.lower()
+    if "hard-rule-grants" in m:
+        return "hard-rules"
     if "conflict" in m:  # "conflicting <group> …" and "conflict check skipped …"
         return "conflict"
     if "doesn't match" in m or "mentions other project" in m:  # folder OR person filename mix-up
@@ -359,6 +369,69 @@ def rotate_session_logs(brain):
 
         moved.append((proj, len(overflow)))
     return moved
+
+
+def brain_md_files(brain):
+    """index.md, then every .md under projects/ and people/ (sorted, relative to the brain)."""
+    out = ["index.md"] if os.path.isfile(os.path.join(brain, "index.md")) else []
+    for sub in ("projects", "people"):
+        for root, dirs, files in os.walk(os.path.join(brain, sub)):
+            dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+            out += [os.path.relpath(os.path.join(root, f), brain) for f in sorted(files) if f.endswith(".md")]
+    return out
+
+
+def check_hard_rules_and_hidden(brain, strict, errors, warnings):
+    """hard-rule-grants + hidden-chars. Returns every hard rule as (rel, line_no, sanitised text)."""
+    rules = []
+    files = brain_md_files(brain)
+    extra = [f for f in ("index.compact", "decisions.md") if os.path.isfile(os.path.join(brain, f))]
+    for rel in files + extra:
+        try:
+            lines = read_text(os.path.join(brain, rel)).splitlines()
+        except (OSError, UnicodeDecodeError):
+            continue
+        hidden = []
+        for n, line in enumerate(lines, 1):
+            for col, code in _trust.hidden_positions(line):
+                hidden.append(f"{n}:{col + 1} U+{code:04X}")
+            is_rule_file = rel == "index.md" or (rel in files and not os.path.basename(rel).startswith("_"))
+            if is_rule_file and line.lstrip().startswith("!"):
+                text = _trust.sanitize(line.strip())
+                rules.append((rel, n, text))
+                hits = _trust.grant_hits(line)
+                if hits:
+                    msg = (f"{rel}:{n} hard-rule-grants ({', '.join(hits)}): a `!` rule may only restrict, "
+                           f"this one grants — move standing permissions to CLAUDE.md or remove it: {text[:160]}")
+                    (errors if strict else warnings).append(msg)
+        if hidden:
+            shown = ", ".join(hidden[:5]) + (f", … ({len(hidden)} in total)" if len(hidden) > 5 else "")
+            errors.append(f"{rel}: hidden-chars — invisible character(s) a reader can't see at {shown}; "
+                          f"remove them (brain-inject and brain-trust show them as <U+XXXX>)")
+    return rules
+
+
+def print_hard_rules(brain, rules):
+    print(f"\n  Hard rules ({len(rules)}) — every `!` line, for review in one place:")
+    for rel, n, text in rules:
+        print(f"    {rel}:{n}  {text[:200]}")
+    workspace = os.path.dirname(os.path.abspath(brain))
+    entry = _trust.find(workspace)
+    if not entry:
+        return
+    if entry.get("index_md_sha256_at_trust") == _trust.index_sha256(workspace):
+        return
+    since = entry.get("trusted_at", "?")
+    before = entry.get("hard_rules_at_trust")
+    if before is None:
+        print(f"\n  index.md changed since you trusted this brain ({since}). The rules you accepted then were not "
+              f"recorded (trusted before 2.5); run `brain-trust {workspace} --yes` to record the current ones.")
+        return
+    now = [text for rel, n, text in rules if rel == "index.md"]
+    added = [r for r in now if r not in before]
+    print(f"\n  Hard rules added since you trusted this brain ({since}): {len(added)}")
+    for r in added:
+        print(f"    + {r[:200]}")
 
 
 def main():
@@ -669,6 +742,8 @@ def main():
     except Exception as exc:  # never let the advisory check fail the validator
         warnings.append(f"compact consistency check skipped ({exc})")
 
+    hard_rules = check_hard_rules_and_hidden(brain, strict, errors, warnings)
+
     total = sum(per_project.values())
     ppl = f" + {people_count} person file(s)" if people_count else ""
 
@@ -687,6 +762,7 @@ def main():
                 print(f"\n  {title} ({len(items)}):")
                 for w in items:
                     print(f"    ⚠ {w}")
+        print_hard_rules(brain, hard_rules)
         if not errors and not warnings:
             print("\n  ✓ clean — no errors, no warnings")
     else:
