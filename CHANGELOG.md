@@ -3,6 +3,22 @@
 All notable changes to Project Brain are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the project uses semantic-ish versioning.
 
+## [Unreleased]
+
+### Added
+- **CI** (`.github/workflows/test.yml`): every push to `main` and every pull request runs on Ubuntu and
+  macOS with Python 3.9 and 3.12. It calls `tests/run-all.sh`, which checks the syntax of every script
+  under `skills/` and `install.sh` (`bash -n`, or a Python compile that writes no files) and runs every
+  `tests/test-*.sh`, printing PASS/FAIL per item.
+
+### Fixed
+- **`brain-nudge` on macOS** read the modification time of `index.md` with `date -r FILE` and GNU
+  `stat -c`; where neither works (BSD `date -r` takes seconds, BSD `stat` uses `-f %m`) it fell back to
+  `0`, so after its first reminder it never reset. It now tries `stat -c %Y`, then `stat -f %m`.
+- Two tests ran the scripts from a hard-coded `/home/ubuntu/...` path, so they failed on any other
+  machine; they now use the repo they live in. One test used `sed -i` without a suffix, which BSD sed
+  rejects.
+
 ## [2.4.2] — 2026-11-09
 
 ### Action needed

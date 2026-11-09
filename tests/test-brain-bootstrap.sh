@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -u
-BOOT=/home/ubuntu/CascadeProjects/claude-code-project-brain/skills/project-brain/brain-bootstrap
+BOOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../skills/project-brain" && pwd)/brain-bootstrap"
 ROOT=$(mktemp -d)
 FAKE="$ROOT/projects"; mkdir -p "$FAKE"
 

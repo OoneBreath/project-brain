@@ -3,7 +3,7 @@
 # (infra map / multi-repo roadmap) name several mutually-exclusive techs without
 # being flagged — while genuine drift from OTHER topics still surfaces.
 set -u
-CHECK=/home/ubuntu/CascadeProjects/claude-code-project-brain/skills/project-brain/brain-check
+CHECK="$(cd "$(dirname "${BASH_SOURCE[0]}")/../skills/project-brain" && pwd)/brain-check"
 ROOT=$(mktemp -d)
 BRAIN="$ROOT/.project-brain"
 mkdir -p "$BRAIN/projects/roadmap" "$BRAIN/projects/realapp"

@@ -46,7 +46,7 @@ fi
 [ "$changed" -eq 1 ] || exit 0
 
 # Throttle: one nudge per unsaved-work window, keyed on index.md mtime.
-stamp="$(date -r "$index" +%s 2>/dev/null || stat -c %Y "$index" 2>/dev/null || echo 0)"
+stamp="$(stat -c %Y "$index" 2>/dev/null || stat -f %m "$index" 2>/dev/null || date -r "$index" +%s 2>/dev/null || echo 0)"
 key="$(printf '%s' "$ws" | cksum | cut -d' ' -f1)"
 state="${TMPDIR:-/tmp}/project-brain-nudge-$key"
 if [ -f "$state" ] && [ "$(cat "$state" 2>/dev/null)" = "$stamp" ]; then
