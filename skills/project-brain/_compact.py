@@ -68,6 +68,25 @@ def read_text(path):
         return fh.read()
 
 
+_BRACKET_RE = re.compile(r"\[([^\[\]]*)\]")
+
+
+def status_bracket(line, words=None):
+    """The status bracket of an index line, as a match (group 1 = its text).
+
+    It is the LAST [...] that holds a status word or a date, not the first [...] on the line:
+    descriptions can contain brackets of their own ("plaintext [Security] password", a
+    "[[wiki-link]]"), and taking the first one dropped the topic's status, date and version.
+    """
+    words = VALID_STATUS if words is None else words
+    found = list(_BRACKET_RE.finditer(line))
+    for m in reversed(found):
+        b = m.group(1)
+        if re.search(r"\d{4}-\d{2}-\d{2}", b) or any(re.search(r"\b" + re.escape(w) + r"\b", b) for w in words):
+            return m
+    return found[-1] if found else None
+
+
 def _status_of(bracket):
     for s in VALID_STATUS:
         if s in bracket:
@@ -127,7 +146,7 @@ def parse_index(text):
         slug = re.split(r"→", body)[0].strip()
         slug = slug.split()[0] if slug.split() else slug
         status = date = ver = pointer = drift = None
-        mb = re.search(r"\[([^\]]*)\]", body)
+        mb = status_bracket(body)
         if mb:
             bracket = mb.group(1)
             status = STATUS_CODE.get(_status_of(bracket))
@@ -179,7 +198,7 @@ def parse_people(text):
         slug = re.split(r"→", body)[0].strip()
         slug = slug.split()[0] if slug.split() else slug
         status = date = pointer = None
-        mb = re.search(r"\[([^\]]*)\]", body)
+        mb = status_bracket(body, PEOPLE_STATUS)
         if mb:
             for st in PEOPLE_STATUS:
                 if st in mb.group(1):

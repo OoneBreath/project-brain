@@ -388,7 +388,7 @@ def anchor_results(brain):
         if "→" not in line:
             continue
         mp = re.search(r"(projects/\S+\.md)", line)
-        mb = re.search(r"\[([^\]]*)\]", line)
+        mb = _compact.status_bracket(line)
         if not mp or not mb or index_status(mb.group(1)) not in FINISHED_STATUS:
             continue
         full = os.path.join(brain, mp.group(1))
@@ -416,7 +416,7 @@ def fix_drift(brain):
     out = []
     for line in text.split("\n"):
         mp = re.search(r"(projects/\S+\.md)", line) if "→" in line else None
-        mb = re.search(r"\[([^\]]*)\]", line) if mp else None
+        mb = _compact.status_bracket(line) if mp else None
         if mb:
             bracket = mb.group(1)
             had = _compact.DRIFT_RE.search(bracket)
@@ -639,7 +639,7 @@ def main():
             linked.add(rel)
             full = os.path.join(brain, rel)
             is_person = rel.startswith("people/")
-            mb = re.search(r"\[([^\]]*)\]", line)
+            mb = _compact.status_bracket(line, PEOPLE_STATUS if is_person else None)
             idx_st = (people_status if is_person else index_status)(mb.group(1)) if mb else None
 
             if not os.path.isfile(full):

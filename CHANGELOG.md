@@ -51,6 +51,12 @@ All notable changes to Project Brain are documented here. Format loosely follows
   in SKILL.md, LOW `oversized`, ~8,762 tok on use), after OK (no MEDIUM, ~3,064 tok on use).
 
 ### Fixed
+- **A topic line with its own `[...]` in the description lost its status.** The first `[...]` on an
+  `index.md` line was taken as the status bracket, so a description like "plaintext [Security]
+  password" or a `[[wiki-link]]` made `index.compact` show the topic without status, date or version,
+  and `brain-check` skipped its status-drift check (and the new anchor check). The status bracket is
+  now the last `[...]` holding a status word or a date. Found on a real brain (2 of 91 topic lines).
+  Regression test: `tests/test-status-bracket.sh`.
 - **`brain-nudge` on macOS** read the modification time of `index.md` with `date -r FILE` and GNU
   `stat -c`; where neither works (BSD `date -r` takes seconds, BSD `stat` uses `-f %m`) it fell back to
   `0`, so after its first reminder it never reset. It now tries `stat -c %Y`, then `stat -f %m`.
