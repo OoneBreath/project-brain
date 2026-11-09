@@ -67,10 +67,16 @@ def summary(workspace):
         hidden += _trust.hidden_count(text)
         for n, line in enumerate(text.splitlines(), 1):
             if line.lstrip().startswith("!"):
-                rules.append("  %s:%d  %s" % (os.path.relpath(path, brain), n, _trust.sanitize(line.strip())[:200]))
+                hits = _trust.grant_hits(line)
+                flag = "  <- GRANTS, not a restriction (%s)" % ", ".join(hits) if hits else ""
+                rules.append("  %s:%d  %s%s" % (os.path.relpath(path, brain), n, _trust.sanitize(line.strip())[:200], flag))
     print("Hard rules (`!` lines) — these can only restrict what the agent does: %d" % len(rules))
     for r in rules:
         print(r)
+    granting = sum(1 for r in rules if "<- GRANTS" in r)
+    if granting:
+        print("WARNING: %d rule(s) grant a permission, skip a confirmation, hide something or point to remote "
+              "content. The agent is told not to follow such rules; read them before you trust this brain." % granting)
     if hidden:
         print("WARNING: %d invisible character(s) (zero-width, bidi or tag) in the brain; they show as <U+XXXX> above "
               "and when loaded. Text you cannot see is a common way to hide instructions." % hidden)
@@ -149,8 +155,14 @@ def main(argv):
 
     if not summary(workspace):
         return 1
-    if _trust.is_trusted(workspace):
-        print("\nAlready trusted: %s" % workspace)
+    existing = _trust.find(workspace)
+    if existing:
+        if "--yes" in args or "-y" in args:
+            _trust.add(workspace, created_here=existing.get("brain_created_here", False))
+            print("\nAlready trusted: %s — recorded its current state (hard rules, index.md hash)." % workspace)
+        else:
+            print("\nAlready trusted since %s: %s. Re-run with --yes to record its current state."
+                  % (existing.get("trusted_at", "?"), workspace))
         return 0
     if "--yes" not in args and "-y" not in args:
         if not sys.stdin.isatty():

@@ -12,6 +12,21 @@ All notable changes to Project Brain are documented here. Format loosely follows
   `tests/test-*.sh`, printing PASS/FAIL per item. Python 3.9 runs on `ubuntu-24.04`, because
   setup-python has no 3.9 for the newest Ubuntu image.
 
+- **`brain-check` lints hard rules.** `hard-rule-grants` (a warning; an error with `--strict`) fires on a
+  `!` line in `index.md`, a topic or a person file that grants instead of restricting: skips a
+  confirmation ("never ask before…", "without asking", "pre-approved"), widens permissions
+  ("--dangerously…", "bypass", "sudo", "run as root", "ignore previous", "override"), hides something
+  from the user ("don't tell", "silently"), or says to follow remote content (a URL plus
+  follow/run/execute). A rule that is itself negated — "! never: bypass the review", "! never use sudo
+  on prod" — is a restriction and isn't flagged. The phrase list lives in one place,
+  `_trust.HARD_RULE_GRANTS`; `brain-trust` uses it too and marks such rules before you trust a brain.
+- **`hidden-chars`** (an error): zero-width, bidi-control or Unicode tag characters anywhere in the
+  brain, with line:column positions. A zero-width joiner between two emoji (family, flag sequences) is
+  not counted, and `brain-inject` no longer rewrites it either.
+- **`brain-check --report`** lists every hard rule with its file, and — for a brain you trusted — the
+  rules added to `index.md` since then. `brain-trust` now records the hard rules at trust time;
+  `brain-trust WORKSPACE --yes` on an already trusted workspace records its current state.
+
 ### Fixed
 - **`brain-nudge` on macOS** read the modification time of `index.md` with `date -r FILE` and GNU
   `stat -c`; where neither works (BSD `date -r` takes seconds, BSD `stat` uses `-f %m`) it fell back to
