@@ -30,5 +30,8 @@ result reflects what the project actually documents: a well-documented repo back
 bare one. It summarises what's there; it does not invent context. Set the user's expectations
 accordingly — this is not magic, and two different projects will produce different depth.
 
+For every topic you create from code, fill `anchors:` with the files you actually read (see
+`format.md`), so `brain-check` can tell later when that code changed.
+
 Before starting: warn the user it is a one-time upfront cost that pays back on every later session,
 and offer to scope it to **one project at a time** rather than the whole workspace.

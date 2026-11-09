@@ -27,8 +27,18 @@ All notable changes to Project Brain are documented here. Format loosely follows
   rules added to `index.md` since then. `brain-trust` now records the hard rules at trust time;
   `brain-trust WORKSPACE --yes` on an already trusted workspace records its current state.
 
+- **Anchor drift: "verified" stops counting once the code changes.** A topic can list `anchors:` —
+  files, optionally `#symbol`, relative to its `root:` or the workspace. For a verified/done topic,
+  `brain-check` warns (`anchor-drift`) when an anchor file is missing, a symbol no longer appears in it,
+  or, in a git repository, the file has commits (or uncommitted edits) dated after the topic's
+  `last_done`. Read-only git, no network; outside git only the first two run, and the report says so
+  once. `brain-check --fix` writes `· drift <date>` into the topic's status bracket in `index.md` and
+  removes it after a re-verify; the compact shows `✓v?` / `✓d?` (new legend line). Only `--fix` writes
+  it, never a hook, so the compact stays a pure function of `index.md`. Dates are days, so a change
+  on the same day as the verification isn't detected. `templates/topic.md` lists the two fields.
+
 ### Changed
-- **SKILL.md split: 564 → 198 lines.** SKILL.md is what the agent loads every time the skill is used.
+- **SKILL.md split: 564 → 198 lines** (200 after the anchor-drift lines above). SKILL.md is what the agent loads every time the skill is used.
   It now keeps only what every use needs — where the brain lives, the modes (init / recall / save /
   validate), what a save writes (index line, status legend, hard rules), the Rules — plus a "read X
   when Y" table. The detail moved, with the wording unchanged, into

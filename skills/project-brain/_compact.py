@@ -36,8 +36,12 @@ HEADER_LINES = [
     "#   when active projects > 15, WARM collapses to: P <name> <stack> · N topics, last <date>",
     "#   a project's finished topics collapse past 15: '+K more, oldest <date>' (⚠ always kept)",
     "#   ! <rule> = HARD RULE, never violate (brain-wide on top, or under a project) · ~ = session resume",
+    "#   ✓v? / ✓d? = code under the topic's anchors changed after it was verified: re-verify before trusting",
     "#   @ <name> <status> <date> = person (people/<name>.md) · status: active|prospect|paused|closed",
 ]
+
+# Anchor drift marker inside an index.md status bracket: "[✓ verified 2026-05-12 · v2 · drift 2026-06-01]".
+DRIFT_RE = re.compile(r"\bdrift\s+(\d{4}-\d{2}-\d{2})")
 
 HOT_MAX = 3            # at most this many projects are HOT (always full in compact)
 PROJECT_THRESHOLD = 15  # above this many ACTIVE projects, WARM collapses to keep compact small
@@ -122,11 +126,13 @@ def parse_index(text):
             continue
         slug = re.split(r"→", body)[0].strip()
         slug = slug.split()[0] if slug.split() else slug
-        status = date = ver = pointer = None
+        status = date = ver = pointer = drift = None
         mb = re.search(r"\[([^\]]*)\]", body)
         if mb:
             bracket = mb.group(1)
             status = STATUS_CODE.get(_status_of(bracket))
+            mdr = DRIFT_RE.search(bracket)  # "· drift YYYY-MM-DD", written only by brain-check --fix
+            drift = mdr.group(1) if mdr else None
             md = re.search(r"\d{4}-\d{2}-\d{2}", bracket)
             date = md.group(0) if md else None
             mv = re.search(r"\bv(\d+)\b", bracket)
@@ -135,7 +141,7 @@ def parse_index(text):
         if mptr:
             pointer = mptr.group(1)
         cur["topics"].append(
-            {"slug": slug, "status": status, "date": date, "ver": ver, "pointer": pointer}
+            {"slug": slug, "status": status, "date": date, "ver": ver, "pointer": pointer, "drift": drift}
         )
     return projects
 
@@ -363,7 +369,8 @@ def render_compact(text, gen_date=None):
             parts = [t["slug"]]
             for key in ("status", "date", "ver"):
                 if t[key]:
-                    parts.append(t[key])
+                    drifted = key == "status" and t.get("drift") and t[key] in ("✓v", "✓d")
+                    parts.append(t[key] + ("?" if drifted else ""))
             default = f"projects/{p['name']}/{t['slug']}.md"
             if t["pointer"] and t["pointer"] != default:
                 parts.append(t["pointer"])

@@ -50,6 +50,8 @@ trust: human              # human=FACT | ai-inferred | pref=preference  (absent 
 last_done: 2026-05-12
 review_by: 2026-11-12      # optional: re-confirm by this date, else flagged stale
 # allow_conflict: [relational-db]   # optional: aggregator topic may list several DBs/hosts — don't flag
+anchors: [src/cache/redis.ts#getOrSet, infra/docker-compose.yml]   # optional: the code it describes
+# root: ../acme-api        # optional: what anchors are relative to (default: the workspace)
 version: 2
 ---
 
@@ -59,6 +61,24 @@ version: 2
 
 **v1 (superseded):** 60s TTL — too slow, users saw stale data.
 ```
+
+**Anchors — when "verified" stops being true.** `anchors:` lists the files the topic describes, each
+optionally with `#symbol` (a function, class or key: a plain-text search for the identifier, no
+parser). Paths are relative to the topic's `root:` (relative to the workspace, or absolute), or to the
+workspace when there is no `root:` — set `root:` in a brain that catalogs several repos. For a
+`verified`/`done` topic, `brain-check` warns (`anchor-drift`) when an anchor file is missing, a symbol
+no longer appears in it, or — in a git repository — the file has commits (or uncommitted edits) dated
+after the topic's `last_done`. It runs read-only git (`git log -1 --format=%cs`, `git status`), no
+network; outside a git repository only the first two checks run, and the report says so once. Dates
+are days: a change committed on the same day as the verification isn't detected.
+
+`brain-check --fix` then writes `· drift <date>` into that topic's status bracket in `index.md`
+(`[✓ verified 2026-05-12 · v2 · drift 2026-06-01]`), so the compact shows `✓v?` at session start, and
+removes it again once the topic is re-verified (a newer `last_done`). Only `--fix` writes it — never a
+hook — so the compact stays a pure function of `index.md`.
+
+When you create a topic from code (a save after real work, or a deep backfill), fill `anchors:` with
+the files you actually read or changed.
 
 ## People — agreements with humans (beside projects)
 

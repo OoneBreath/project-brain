@@ -28,6 +28,7 @@ a real multi-project brain). It is what you read at session start; the markdown 
 #   tiers:  P+ = HOT (active, full)  ·  P = WARM  ·  COLD (archived) omitted — read on demand
 #   when active projects > 15, WARM collapses to: P <name> <stack> · N topics, last <date>
 #   ! <rule> = HARD RULE, never violate (brain-wide on top, or under a project) · ~ = session resume
+#   ✓v? / ✓d? = code under the topic's anchors changed after it was verified: re-verify before trusting
 @src index.md  @gen 2026-06-13  @updated 2026-05-20
 
 ! never: deploy outside the EU (client is GDPR-bound)
