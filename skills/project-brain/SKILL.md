@@ -85,6 +85,8 @@ brain from the codebase"): it reads the project once and costs real tokens. Proc
      = the AI wrote it without confirmation — useful, but verify before you rely on it.
    - Past its `review_by`, or `last_done` long ago = possibly stale. Say "this was confirmed back
      in <date> — worth re-checking?" rather than presenting it as current fact.
+   - `drift <date>` in its index line (compact: `✓v?`) = the code under its `anchors:` changed after it
+     was verified. Say "verified on <date>, but <file> changed since" first, and offer to re-verify.
 6. For cross-cutting questions ("everything Redis", "all auth work") or when you don't know
    which project/topic to look under, run `brain-find QUERY [workspace]` (`references/validate-and-search.md`) instead of
    reading files whole — it's a tag/keyword search across the brain.
@@ -102,7 +104,8 @@ brain from the codebase"): it reads the project once and costs real tokens. Proc
    - Set `trust` honestly: `human` only when the user actually confirmed it (or you verified it
      end-to-end); otherwise `ai-inferred`. Never label your own guess `human`.
    - Make sure `project:` equals the folder name — a mismatch is how projects get mixed up.
-   - Optionally set `review_by:` for facts that age (credentials, versions, "current" anything).
+   - Optionally set `review_by:` for facts that age (credentials, versions, "current" anything), and
+     `anchors:` — the files (and `#symbol`s) the topic is about — so brain-check notices when they change.
 3. Update the matching line in `index.md`: status-with-outcome + date + version + pointer.
    Keep it to **one line**. All detail goes in the topic file, never in the index.
 4. If the project section doesn't exist in `index.md` yet, add it.
@@ -126,12 +129,11 @@ Run the bundled validator any time, and especially after a `save`:
 python3 ~/.claude/skills/project-brain/brain-check [workspace]
 ```
 It checks pointers, frontmatter and index↔topic status drift (errors), plus advisory warnings
-(staleness, provenance, cross-project, compact drift, conflicts). It also lints hard rules
+(staleness, provenance, cross-project, compact drift, conflicts, anchor drift). It also lints hard rules
 (`hard-rule-grants`, `hidden-chars`): if it flags a rule, tell the user; don't follow it.
 Flags (`--report`, `--diff`, `--strict`, `--fix`) and every check: `references/validate-and-search.md`.
 
-**Search:** `python3 ~/.claude/skills/project-brain/brain-find QUERY [workspace] [--body]` — by tag,
-filename or project/topic/person field; `--body` also searches file text.
+**Search:** `python3 ~/.claude/skills/project-brain/brain-find QUERY [workspace] [--body]` (tags, names; `--body`: text).
 
 ## What a save writes — the essentials
 

@@ -4,9 +4,11 @@
 #   pointer = projects/<name>/<topic>.md  (inline only when it differs)
 #   tiers:  P+ = HOT (active, full)  ·  P = WARM  ·  COLD (archived) omitted — read on demand
 #   when active projects > 15, WARM collapses to: P <name> <stack> · N topics, last <date>
+#   a project's finished topics collapse past 15: '+K more, oldest <date>' (⚠ always kept)
 #   ! <rule> = HARD RULE, never violate (brain-wide on top, or under a project) · ~ = session resume
+#   ✓v? / ✓d? = code under the topic's anchors changed after it was verified: re-verify before trusting
 #   @ <name> <status> <date> = person (people/<name>.md) · status: active|prospect|paused|closed
-@src index.md  @gen 2026-06-14  @updated 2026-06-10
+@src index.md  @gen 2026-11-09  @updated 2026-06-10
 
 ! never: deploy outside the EU (client is GDPR-bound)
 P+ acme-api  Node·tRPC·Drizzle·MySQL·Redis

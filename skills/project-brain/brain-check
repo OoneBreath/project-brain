@@ -25,6 +25,11 @@ Checks:
     restricting (skips confirmation, widens permissions, hides things from the user, or says to
     follow remote content) — a warning, an error with --strict. Phrase list: _trust.HARD_RULE_GRANTS
   - hidden-chars (error): zero-width, bidi-control or Unicode tag characters anywhere in the brain
+  - anchor-drift (warning): a verified/done topic lists `anchors:` (files, optionally #symbol, relative
+    to its `root:` or the workspace) and an anchor is missing, a symbol is gone, or — in a git
+    repo — the file has commits (or uncommitted edits) after the topic's last_done. --fix writes
+    "· drift <date>" into that topic's index.md status bracket (the compact shows ✓v?) and
+    removes it once the topic is re-verified. Read-only git, no network.
 
 Backward compatible: the new provenance/staleness/cross-project/conflict signals are WARNINGS,
 never errors, and only fire on fields a brain actually uses — older brains keep passing untouched.
@@ -49,6 +54,7 @@ Usage:
 """
 import os
 import re
+import subprocess
 import sys
 from datetime import date, datetime
 
@@ -183,6 +189,7 @@ def parse_allow_conflict(val):
 # --- --report grouping: classify a warning string into a section (default output is unchanged) ---
 REPORT_SECTIONS = [
     ("hard-rules",    "Hard rules that grant instead of restrict"),
+    ("anchors",       "Anchors (code changed since the topic was verified)"),
     ("conflict",      "Conflicts (contradictory facts)"),
     ("staleness",     "Staleness (re-confirm before trusting)"),
     ("cross-project", "Cross-project (possible mix-ups)"),
@@ -198,6 +205,8 @@ def categorize(msg):
     m = msg.lower()
     if "hard-rule-grants" in m:
         return "hard-rules"
+    if "anchor-drift" in m:
+        return "anchors"
     if "conflict" in m:  # "conflicting <group> …" and "conflict check skipped …"
         return "conflict"
     if "doesn't match" in m or "mentions other project" in m:  # folder OR person filename mix-up
@@ -304,6 +313,130 @@ def run_diff(brain, cutoff):
                 print(f"    · {ln}")
     print(f"\n✓ {total} change(s) since {cutoff}.")
     return 0
+
+
+# --- anchor drift: did the code a finished topic describes change after it was verified? -----
+
+def parse_list(val):
+    if not val:
+        return []
+    v = re.split(r"\s+#", val, 1)[0].strip()  # drop a YAML-style inline ` # comment`
+    return [t.strip().strip("'\"") for t in v.strip("[]").split(",") if t.strip()]
+
+
+def _git(cwd, *args):
+    """Read-only git query; None when git is missing, cwd is not a repo, or the command fails."""
+    try:
+        r = subprocess.run(["git", "-C", cwd] + list(args), stdout=subprocess.PIPE,
+                           stderr=subprocess.DEVNULL, universal_newlines=True, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def topic_root(brain, fm):
+    workspace = os.path.dirname(os.path.abspath(brain))
+    root = os.path.expanduser((fm.get("root") or "").strip().strip("'\""))
+    if not root:
+        return workspace
+    return root if os.path.isabs(root) else os.path.normpath(os.path.join(workspace, root))
+
+
+def topic_anchor_drift(brain, fm, index_date):
+    """-> (problems, drift_date, root, in_git) for one topic's `anchors:`."""
+    anchors = parse_list(fm.get("anchors"))
+    if not anchors:
+        return [], None, None, None
+    root = topic_root(brain, fm)
+    verified = parse_date(fm.get("last_done") or "") or parse_date(index_date or "")
+    in_git = os.path.isdir(root) and _git(root, "rev-parse", "--is-inside-work-tree") == "true"
+    problems, latest = [], None
+    for anchor in anchors:
+        path, _, symbol = anchor.partition("#")
+        full = path if os.path.isabs(path) else os.path.join(root, path)
+        changed = None  # the date the code changed after verification, if it did
+        if in_git and verified:
+            last = _git(root, "log", "-1", "--format=%cs", "--", full)
+            if last and parse_date(last) and parse_date(last) > verified:
+                changed = last
+            elif os.path.isfile(full) and _git(root, "status", "--porcelain", "--", full):
+                mtime = date.fromtimestamp(os.path.getmtime(full))
+                if mtime > verified:
+                    changed = mtime.isoformat()
+        if changed and (latest is None or changed > latest):
+            latest = changed
+        if not os.path.exists(full):
+            problems.append(f"anchor missing: {anchor}" + (f" (changed {changed})" if changed else ""))
+            continue
+        if symbol:
+            try:
+                text = read_text(full)
+            except (OSError, UnicodeDecodeError):
+                text = ""
+            if not re.search(r"(?<![\w$])" + re.escape(symbol) + r"(?![\w$])", text):
+                problems.append(f"symbol missing: {anchor}")
+        if changed:
+            problems.append(f"code changed since this was verified on {verified}: {path} ({changed}) — "
+                            "re-verify before trusting")
+    return problems, latest, root, in_git
+
+
+def anchor_results(brain):
+    """{pointer: (problems, drift_date)} for every verified/done topic with anchors, plus non-git roots."""
+    results, no_git = {}, set()
+    for line in read_text(os.path.join(brain, "index.md")).splitlines():
+        if "→" not in line:
+            continue
+        mp = re.search(r"(projects/\S+\.md)", line)
+        mb = re.search(r"\[([^\]]*)\]", line)
+        if not mp or not mb or index_status(mb.group(1)) not in FINISHED_STATUS:
+            continue
+        full = os.path.join(brain, mp.group(1))
+        if not os.path.isfile(full):
+            continue
+        fm = parse_frontmatter(read_text(full)) or {}
+        if (fm.get("status") or "").strip() not in FINISHED_STATUS:
+            continue
+        md = re.search(r"\d{4}-\d{2}-\d{2}", mb.group(1))
+        problems, drift, root, in_git = topic_anchor_drift(brain, fm, md.group(0) if md else None)
+        if root is None:
+            continue
+        if not in_git:
+            no_git.add(root)
+        results[mp.group(1)] = (problems, drift)
+    return results, no_git
+
+
+def fix_drift(brain):
+    """Write/clear "· drift <date>" in index.md status brackets. Returns (marked, cleared)."""
+    index = os.path.join(brain, "index.md")
+    text = read_text(index)
+    results, _ = anchor_results(brain)
+    marked = cleared = 0
+    out = []
+    for line in text.split("\n"):
+        mp = re.search(r"(projects/\S+\.md)", line) if "→" in line else None
+        mb = re.search(r"\[([^\]]*)\]", line) if mp else None
+        if mb:
+            bracket = mb.group(1)
+            had = _compact.DRIFT_RE.search(bracket)
+            want = results.get(mp.group(1), ([], None))[1]
+            new = re.sub(r"\s*·\s*drift\s+\d{4}-\d{2}-\d{2}", "", bracket).rstrip()
+            if want:
+                new = f"{new} · drift {want}"
+            if new != bracket:
+                line = line[:mb.start(1)] + new + line[mb.end(1):]
+                if want:
+                    marked += 1
+                elif had:
+                    cleared += 1
+        out.append(line)
+    if marked or cleared:
+        tmp = index + ".tmp-drift"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write("\n".join(out))
+        os.replace(tmp, index)
+    return marked, cleared
 
 
 def fix_compact(brain):
@@ -464,10 +597,15 @@ def main():
         return run_diff(brain, diff_date)
 
     if fix:
+        drift_marked, drift_cleared = fix_drift(brain)
         compact_changed = fix_compact(brain)
         rotated = rotate_session_logs(brain)
-        if compact_changed or rotated:
+        if compact_changed or rotated or drift_marked or drift_cleared:
             print("brain-check --fix:")
+            if drift_marked:
+                print(f"  ✓ marked {drift_marked} topic line(s) in index.md with anchor drift (compact: ✓v? / ✓d?)")
+            if drift_cleared:
+                print(f"  ✓ cleared the drift marker from {drift_cleared} re-verified topic line(s)")
             if compact_changed:
                 print("  ✓ regenerated index.compact")
             for proj, n in rotated:
@@ -743,6 +881,17 @@ def main():
         warnings.append(f"compact consistency check skipped ({exc})")
 
     hard_rules = check_hard_rules_and_hidden(brain, strict, errors, warnings)
+
+    try:
+        anchors, no_git = anchor_results(brain)
+        for pointer, (problems, _drift) in sorted(anchors.items()):
+            for problem in problems:
+                warnings.append(f"{pointer}: anchor-drift — {problem}")
+        for root in sorted(no_git):
+            warnings.append(f"anchor-drift: {root} is not a git repository — only checked that anchors and "
+                            "symbols exist, not whether the code changed")
+    except Exception as exc:  # advisory: never let it fail the validator
+        warnings.append(f"anchor-drift check skipped ({exc})")
 
     total = sum(per_project.values())
     ppl = f" + {people_count} person file(s)" if people_count else ""

@@ -31,8 +31,12 @@ to additionally flag topics that name-drop another project without a
 (staleness, provenance, cross-project, compact-drift, thin **and over-long** topics, session-log
 overflow, orphans, over-fragmentation) are advisory.
 
-Add `--fix` to apply the two *mechanical* fixes before validating — regenerate a missing/stale
-`index.compact`, and rotate any project's `_session.md` past 5 active lines into `_session.cold.md`
+**Anchor drift** (`anchor-drift`, advisory): for a verified/done topic with `anchors:`, it warns
+when an anchor file is missing, a `#symbol` is gone, or (in git) the file changed after the topic's
+`last_done`. `--fix` writes/clears the `· drift <date>` marker in `index.md`. Details: `format.md`.
+
+Add `--fix` to apply the *mechanical* fixes before validating — write or clear anchor-drift markers in
+`index.md`, regenerate a missing/stale `index.compact`, and rotate any project's `_session.md` past 5 active lines into `_session.cold.md`
 (oldest entries move out, newest-first order preserved across both files). Everything else stays a
 human judgment call (orphans, staleness, conflicts — `--fix` never guesses at those). It then runs
 the normal validation so you immediately see what, if anything, still needs you. Idempotent — a

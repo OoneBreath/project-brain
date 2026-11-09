@@ -110,6 +110,9 @@ quietly re-proposed three weeks later.
 - `trust:` — mark a note `human` (a person confirmed it) or `ai-inferred` (the model wrote it
   unconfirmed). Recall weighs them differently; a guess can't harden into "fact" just by being written.
 - `review_by:` — finished topics past their date (or ~180 days) get flagged *"re-confirm before trusting."*
+- `anchors:` — the files (and symbols) a topic describes. When that code changes in git after the topic
+  was verified, `brain-check` says so and `--fix` marks it `✓v?` in the compact: a "verified" note
+  doesn't stay verified after the code under it is rewritten.
 - delta-load — reload only what changed since last time.
 
 **8. Export for other tools.**
