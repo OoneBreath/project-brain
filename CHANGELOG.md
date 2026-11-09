@@ -3,7 +3,18 @@
 All notable changes to Project Brain are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the project uses semantic-ish versioning.
 
-## [Unreleased]
+## [2.5.0] — 2026-11-09
+
+Hard rules are linted, a verified topic stops counting once its code changes, SKILL.md went from 564 to
+200 lines (36,293 → 13,882 bytes, ~8,970 → ~3,438 tokens), and the repo has CI. **Backward compatible: existing brains keep working without edits.
+Still zero required runtime dependencies (Python 3 stdlib only).**
+
+### Action needed (if you are upgrading from 2.4.1 or older)
+- **Run `brain-trust` once in each workspace whose brain you created yourself.** Since 2.4.2 a brain is
+  auto-loaded only in a trusted workspace (see 2.4.2 below). Review what it shows, then confirm:
+  `~/.claude/skills/project-brain/brain-trust /path/to/workspace`. Brains made with `init` are trusted
+  by `init`. Already on 2.4.2? Run `brain-trust /path/to/workspace --yes` once more, so the hard rules
+  are recorded and `brain-check --report` can show the ones added since you trusted the brain.
 
 ### Added
 - **CI** (`.github/workflows/test.yml`): every push to `main` and every pull request runs on Ubuntu and
