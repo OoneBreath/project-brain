@@ -50,6 +50,10 @@ All notable changes to Project Brain are documented here. Format loosely follows
   `airlock audit skills/project-brain` (Skill Airlock 0.2.0): before REVIEW (MEDIUM `agent-config`
   in SKILL.md, LOW `oversized`, ~8,762 tok on use), after OK (no MEDIUM, ~3,064 tok on use).
 
+- **SKILL.md clarifications** from a fresh-agent test of the split (these were unclear before it too):
+  where the scripts live and what `[workspace]` means; recall reads the index the same way session
+  start does (`index.compact`, else `index.md`); a save also updates a related topic line it finished
+  or changed; an explicit "save it" from the user is the decision "suggest, don't auto-save" waits for.
 - **README: 399 → 248 lines.** The five "What's new in 2.0–2.4" sections are gone (the CHANGELOG
   already held all of it) and a 4-line "Latest (2.5)" block links here; Install moved right after
   "The fix"; a short "Security" section (brain content is data, trust before auto-load, hard rules only
