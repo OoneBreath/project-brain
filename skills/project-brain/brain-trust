@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+"""brain-trust — allow (or stop) auto-loading a workspace's brain on this machine.
+
+The `brain-inject` SessionStart hook loads .project-brain/index.compact into the agent's
+context only for trusted workspaces. Run this once for a brain you created yourself or have
+reviewed (e.g. one committed to a repo you cloned). Before trusting, it shows the brain's hard
+rules (`!` lines) and its size, so you see what you are accepting.
+
+Usage:
+  brain-trust [WORKSPACE]                 show the brain, ask, then trust it (default: cwd)
+  brain-trust [WORKSPACE] --yes           trust without the prompt (after reviewing the output)
+  brain-trust [WORKSPACE] --created-here  used by `init`: trust a brain created just now, in a
+                                          workspace where git does not track it
+  brain-trust [WORKSPACE] --revoke        stop auto-loading it
+  brain-trust --list                      list trusted workspaces
+
+The trust store is ~/.project-brain/trusted.json (outside every repo). Python 3 stdlib only.
+"""
+import os
+import sys
+
+HERE = os.path.dirname(os.path.realpath(__file__))
+_cwd = os.path.realpath(os.getcwd())
+sys.path[:] = [HERE] + [p for p in sys.path[1:] if p and os.path.realpath(p) != _cwd]
+
+import subprocess  # noqa: E402
+import time  # noqa: E402
+
+import _compact  # noqa: E402
+import _trust  # noqa: E402
+
+FRESH_SECONDS = 15 * 60
+SCAN_DIRS = ("projects", "people")
+
+
+def brain_files(brain):
+    files = [os.path.join(brain, n) for n in ("index.md", "index.compact") if os.path.isfile(os.path.join(brain, n))]
+    for sub in SCAN_DIRS:
+        for root, dirs, names in os.walk(os.path.join(brain, sub)):
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            files += [os.path.join(root, n) for n in sorted(names) if n.endswith(".md")]
+    return files
+
+
+def read(path):
+    with open(path, encoding="utf-8", errors="replace") as f:
+        return f.read()
+
+
+def summary(workspace):
+    """Print what trusting this brain means. Returns False when there is no brain."""
+    brain = os.path.join(workspace, ".project-brain")
+    if not os.path.isfile(os.path.join(brain, "index.md")) and not os.path.isfile(os.path.join(brain, "index.compact")):
+        print("No .project-brain/ with an index.md or index.compact in %s" % workspace, file=sys.stderr)
+        return False
+    files = brain_files(brain)
+    total = sum(os.path.getsize(p) for p in files)
+    print("Brain: %s" % brain)
+    print("Size:  %d files, %.1f KB" % (len(files), total / 1024.0))
+    compact = os.path.join(brain, "index.compact")
+    if os.path.isfile(compact):
+        print("Auto-loaded at session start: index.compact, %.1f KB (capped at %d KB)"
+              % (os.path.getsize(compact) / 1024.0, _trust.CAP_BYTES // 1024))
+    rules, hidden = [], 0
+    for path in files:
+        text = read(path)
+        hidden += _trust.hidden_count(text)
+        for n, line in enumerate(text.splitlines(), 1):
+            if line.lstrip().startswith("!"):
+                rules.append("  %s:%d  %s" % (os.path.relpath(path, brain), n, _trust.sanitize(line.strip())[:200]))
+    print("Hard rules (`!` lines) — these can only restrict what the agent does: %d" % len(rules))
+    for r in rules:
+        print(r)
+    if hidden:
+        print("WARNING: %d invisible character(s) (zero-width, bidi or tag) in the brain; they show as <U+XXXX> above "
+              "and when loaded. Text you cannot see is a common way to hide instructions." % hidden)
+    index = os.path.join(brain, "index.md")
+    if os.path.isfile(index) and os.path.isfile(compact):
+        try:
+            if _compact.data_lines(read(compact)) != _compact.data_lines(_compact.render_compact(read(index))):
+                print("WARNING: index.compact does not match what index.md generates. The compact is what gets "
+                      "loaded, so it may carry text you did not review in index.md. Run brain-compact first.")
+        except Exception:
+            pass
+    return True
+
+
+def git_tracks(workspace, rel):
+    try:
+        r = subprocess.run(["git", "-C", workspace, "ls-files", "--error-unmatch", rel],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+        return r.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def created_here_problem(workspace):
+    brain = os.path.join(workspace, ".project-brain")
+    index = os.path.join(brain, "index.md")
+    if not os.path.isfile(index):
+        return "there is no .project-brain/index.md yet"
+    if os.path.exists(os.path.join(brain, ".git")):
+        return ".project-brain/ is its own git repository (it may have been cloned)"
+    if git_tracks(workspace, ".project-brain/index.md") or git_tracks(workspace, ".project-brain/index.compact"):
+        return "git tracks .project-brain/ in this workspace (it may come from the repo)"
+    if time.time() - os.path.getmtime(index) > FRESH_SECONDS:
+        return "index.md is older than %d minutes, so it was not created just now" % (FRESH_SECONDS // 60)
+    return ""
+
+
+def main(argv):
+    args = [a for a in argv if a.startswith("-")]
+    pos = [a for a in argv if not a.startswith("-")]
+    known = {"--yes", "-y", "--created-here", "--revoke", "--list", "-h", "--help"}
+    unknown = [a for a in args if a not in known]
+    if unknown or len(pos) > 1 or "-h" in args or "--help" in args:
+        print(__doc__.strip().split("\n\n", 2)[-1] if not unknown else "unknown option: %s" % unknown[0],
+              file=sys.stderr if unknown else sys.stdout)
+        return 2 if unknown or len(pos) > 1 else 0
+
+    if "--list" in args:
+        entries = _trust.load()
+        if not entries:
+            print("No trusted workspaces (%s)." % _trust.store_path())
+        for e in entries:
+            mark = "" if os.path.isdir(e["workspace_realpath"]) else "  (missing)"
+            how = "created here" if e.get("brain_created_here") else "trusted after review"
+            print("%s  %s  %s%s" % (e.get("trusted_at", "?"), how, e["workspace_realpath"], mark))
+        return 0
+
+    workspace = _trust.workspace_key(pos[0] if pos else os.getcwd())
+
+    if "--revoke" in args:
+        if _trust.revoke(workspace):
+            print("Revoked: %s — its brain is no longer loaded automatically." % workspace)
+        else:
+            print("Not trusted: %s — nothing to revoke." % workspace)
+        return 0
+
+    if "--created-here" in args:
+        problem = created_here_problem(workspace)
+        if problem:
+            print("Not trusted automatically: %s. Review the brain and run: brain-trust %s" % (problem, workspace),
+                  file=sys.stderr)
+            return 1
+        _trust.add(workspace, created_here=True)
+        print("Trusted (created here): %s" % workspace)
+        return 0
+
+    if not summary(workspace):
+        return 1
+    if _trust.is_trusted(workspace):
+        print("\nAlready trusted: %s" % workspace)
+        return 0
+    if "--yes" not in args and "-y" not in args:
+        if not sys.stdin.isatty():
+            print("\nNot a terminal — after reviewing the above, re-run with --yes to trust it.", file=sys.stderr)
+            return 1
+        answer = input("\nLoad this brain into every agent session started in %s? [y/N] " % workspace)
+        if answer.strip().lower() not in ("y", "yes"):
+            print("Not trusted.")
+            return 1
+    _trust.add(workspace, created_here=False)
+    print("Trusted: %s — its index.compact is loaded at session start from now on." % workspace)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

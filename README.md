@@ -2,7 +2,7 @@
 
 **Stop re-explaining your projects to the AI every session.**
 
-[![Version](https://img.shields.io/badge/version-2.4.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.4.2-blue)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Runtime deps](https://img.shields.io/badge/runtime%20deps-zero-success)](#how-it-works)
 [![Works with](https://img.shields.io/badge/works%20with-Claude%20Code%20%C2%B7%20Cursor%20%C2%B7%20Windsurf-purple)](#works-across-tools-same-brain-different-agents)
@@ -307,7 +307,10 @@ workspace root and it catalogs them all in one brain.
   default.
 - An optional `brain-inject` `SessionStart` hook reads `.project-brain/index.compact` and injects it
   as context at the **start of the session**, before the agent does anything — so the compact index
-  loads mechanically instead of depending on the model choosing to read it.
+  loads mechanically instead of depending on the model choosing to read it. Since 2.4.2 it does this
+  only in a workspace you trust on this machine: `init` trusts the brain it creates, and
+  `brain-trust [workspace]` trusts one you created earlier or reviewed. A brain that came with a
+  cloned repo gets a one-line notice instead of being loaded (see [SECURITY.md](SECURITY.md)).
 - An optional `brain-autocompact` `PostToolUse` hook regenerates `index.compact` right after
   `index.md` is saved, so the compact index `brain-inject` loads never sits stale mid-session.
 - An optional `brain-nudge` `Stop` hook fires at the **end of a turn** (throttled, so it nudges once after
